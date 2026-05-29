@@ -1,30 +1,33 @@
 import 'dotenv/config';
 import { createApp } from './app.js';
 
-// ─── Repository layer (stub) ───────────────────────────────
-import { createStubUserRepository } from './repositories/stub/user.repository.stub.js';
-import { createStubCommentRepository } from './repositories/stub/comment.repository.stub.js';
-import { createStubPostRepository } from './repositories/stub/post.repository.stub.js';
-import { createStubTagRepository } from './repositories/stub/tag.repository.stub.js';
+// ─── Repository layer (Prisma) ─────────────────────────────
+// 💡 ПОДСКАЗКА: заменили stub на prisma — сервисы/контроллеры/роуты НЕ ТРОНУТЫ
+import { createPrismaUserRepository } from './repositories/prisma/user.repository.prisma.js';
+import { createPrismaPostRepository } from './repositories/prisma/post.repository.prisma.js';
+import { createPrismaCommentRepository } from './repositories/prisma/comment.repository.prisma.js';
+import { createPrismaTagRepository } from './repositories/prisma/tag.repository.prisma.js';
 
-// ─── Service layer ─────────────────────────────────────────
+// ─── Service layer (БЕЗ ИЗМЕНЕНИЙ — те же файлы что и на master) ──
 import { createUserService } from './services/user.service.js';
 import { createPostService } from './services/post.service.js';
 import { createCommentService } from './services/comment.service.js';
 import { createTagService } from './services/tag.service.js';
 
-// ─── Controller layer ──────────────────────────────────────
+// ─── Controller layer (БЕЗ ИЗМЕНЕНИЙ) ──────────────────────
 import { createUserController } from './controllers/user.controller.js';
 import { createPostController } from './controllers/post.controller.js';
 import { createCommentController } from './controllers/comment.controller.js';
 import { createTagController } from './controllers/tag.controller.js';
 
 // ─── Composition Root ──────────────────────────────────────
-// Repositories (stub — in-memory)
-const userRepo = createStubUserRepository();
-const commentRepo = createStubCommentRepository(userRepo);
-const postRepo = createStubPostRepository(userRepo, commentRepo, null);
-const tagRepo = createStubTagRepository(postRepo);
+// 💡 Единственное место, где мы выбираем реализацию.
+//    Было: createStubUserRepository()
+//    Стало: createPrismaUserRepository()
+const userRepo = createPrismaUserRepository();
+const postRepo = createPrismaPostRepository();
+const commentRepo = createPrismaCommentRepository();
+const tagRepo = createPrismaTagRepository();
 
 // Services
 const userService = createUserService({ userRepo });
@@ -52,7 +55,7 @@ const host = process.env.HOST || '0.0.0.0';
 
 try {
   await app.listen({ port, host });
-  app.log.info(`Server running at http://${host}:${port}`);
+  app.log.info(`🟣 Server (Prisma) running at http://${host}:${port}`);
 } catch (err) {
   app.log.error(err);
   process.exit(1);

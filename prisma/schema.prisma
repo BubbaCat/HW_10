@@ -1,0 +1,97 @@
+// 💡 ПОДСКАЗКА: schema.prisma — это декларативное описание БД.
+//    Вы описываете модели, а Prisma:
+//    1. Генерирует SQL-миграцию  (prisma migrate dev)
+//    2. Генерирует TypeScript/JS типы (prisma generate)
+//
+//    Запуск: npx prisma migrate dev --name init
+//
+// Ключевые атрибуты:
+//   @map("column_name")  — маппинг поля на колонку в БД
+//   @@map("table_name")  — маппинг модели на таблицу
+//   @updatedAt            — auto-update при каждом UPDATE
+//   @relation             — связь между моделями
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── User ───────────────────────────────────────────────────────
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique @db.VarChar(255)
+  name      String    @db.VarChar(100)
+  role      String    @default("user") @db.VarChar(20)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // 💡 Связи: один User имеет много Posts и Comments
+  posts     Post[]
+  comments  Comment[]
+
+  @@map("users")
+}
+
+// ── Post ───────────────────────────────────────────────────────
+model Post {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  title     String    @db.VarChar(300)
+  body      String?
+  status    String    @default("draft") @db.VarChar(20)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+
+  // 💡 1:N связь: Post принадлежит User
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments  Comment[]
+  // 💡 M:N связь: Post ↔ Tag через промежуточную модель PostTag
+  tags      PostTag[]
+
+  @@map("posts")
+}
+
+// ── Comment ────────────────────────────────────────────────────
+model Comment {
+  id        Int      @id @default(autoincrement())
+  postId    Int      @map("post_id")
+  authorId  Int?     @map("author_id")
+  body      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  // 💡 authorId может быть NULL (onDelete: SetNull — если юзер удалён)
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@map("comments")
+}
+
+// ── Tag ────────────────────────────────────────────────────────
+model Tag {
+  id    Int       @id @default(autoincrement())
+  name  String    @unique @db.VarChar(50)
+
+  // 💡 M:N: Tag ↔ Post через PostTag
+  posts PostTag[]
+
+  @@map("tags")
+}
+
+// ── PostTag (M:N link table) ───────────────────────────────────
+// 💡 Это явная модель для link-таблицы, а не @relation([])
+//    так мы можем делать attach/detach через create/delete
+model PostTag {
+  postId Int @map("post_id")
+  tagId  Int @map("tag_id")
+
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  // 💡 Составной первичный ключ
+  @@id([postId, tagId])
+  @@map("post_tags")
+}
